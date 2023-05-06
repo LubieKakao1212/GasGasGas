@@ -1,0 +1,150 @@
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        maven { url = 'https://maven.parchmentmc.org' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
+        // Make sure this version matches the one included in Kotlin for Forge
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.21'
+        // OPTIONAL Gradle plugin for Kotlin Serialization
+        classpath 'org.jetbrains.kotlin:kotlin-serialization:1.8.21'
+        classpath 'org.parchmentmc:librarian:1.+'
+    }
+}
+plugins {
+    id "com.github.johnrengelman.shadow" version "7.1.2"
+}
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'org.parchmentmc.librarian.forgegradle'
+apply plugin: 'kotlin'
+apply plugin: 'kotlinx-serialization'
+apply plugin: 'maven-publish'
+
+version = "${mcVersion}-${projectVersion}"
+group = 'com.LubieKakao1212.gasgas'
+archivesBaseName = 'gasgas'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+minecraft {
+    // Change to your preferred mappings
+    mappings channel: 'parchment', version: '2022.11.06-1.18.2'
+    // Add your AccessTransformer
+    // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+
+            property 'forge.logging.markers', 'SCAN,LOADING,CORE'
+            property 'forge.logging.console.level', 'debug'
+
+            //jvmArgs '--add-modules', '', '--add-reads', 'kotlin.stdlib=kotlinx.coroutines.core.jvm'
+
+            mods {
+                qulib {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+            workingDirectory project.file('run/server')
+
+            property 'forge.logging.markers', 'SCAN,LOADING,CORE'
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+                gasgas {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        data {
+            workingDirectory project.file('run')
+
+            property 'forge.logging.markers', 'SCAN,LOADING,CORE'
+            property 'forge.logging.console.level', 'debug'
+
+            args '--mod', 'gasgas', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources')
+
+            mods {
+                gasgas {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+// Include assets and data from data generators
+sourceSets.main.resources { srcDirs 'src/generated/resources/' }
+
+
+repositories {
+    maven {
+        name = 'Kotlin for Forge'
+        url = 'https://thedarkcolour.github.io/KotlinForForge/'
+    }
+    maven {
+        name = 'local'
+        url = "file://${mavenLocal}"
+    }
+}
+
+
+dependencies {
+    // Use the latest version of Minecraft Forge
+    minecraft 'net.minecraftforge:forge:1.18.2-40.2.0'
+
+    implementation 'thedarkcolour:kotlinforforge:3.12.0'
+
+    implementation "com.LubieKakao1212.qulib:qulib-kt:${mcVersion}-${qulibVersion}"
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "17"
+}
+
+jar {
+    manifest {
+        attributes([
+                'Specification-Title': "gasgas",
+                'Specification-Vendor': "examplemodsareus",
+                'Specification-Version': "1", // We are version 1 of ourselves
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version,
+                'Implementation-Vendor' :"examplemodsareus",
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}
+
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allSource
+    archiveClassifier = 'sources'
+}
+
+// Example configuration to allow publishing using the maven-publish plugin
+// This is the preferred method to reobfuscate your jar file
+jar.finalizedBy('reobfJar')
+jar.finalizedBy('sourcesJar')
+// However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing
+//publish.dependsOn('reobfJar')
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact shadowJar
+            artifact sourcesJar
+        }
+    }
+    repositories {
+        maven {
+            url "file://${mavenLocal}"
+        }
+    }
+}
