@@ -27,3 +27,9 @@ More realistic gas mechanics
     versionRange="[1.18.2, 1.19)"
     ordering="NONE"
     side="BOTH"
+[[dependencies.gasgas]]
+    modId="qulib"
+    mandatory=true
+    versionRange="[1.18.2-2.0.0,)"
+    ordering="NONE"
+    side="BOTH"

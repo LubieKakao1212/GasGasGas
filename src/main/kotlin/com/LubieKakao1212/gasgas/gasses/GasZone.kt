@@ -2,7 +2,7 @@ package com.LubieKakao1212.gasgas.gasses
 
 import com.LubieKakao1212.gasgas.util.chainToList
 import com.LubieKakao1212.qulib.libs.joml.Vector3d
-import com.LubieKakao1212.qulib.math.extensions.from
+import com.LubieKakao1212.qulib.math.extensions.fromCenter
 import com.LubieKakao1212.qulib.math.extensions.minus
 import com.LubieKakao1212.qulib.math.extensions.toBlockPos
 import com.LubieKakao1212.qulib.physics.raycast.raycastGridUntil
@@ -10,35 +10,33 @@ import net.minecraft.core.BlockPos
 import net.minecraft.world.level.Level
 import java.util.PriorityQueue
 
-
-fun calculateZone(level : Level, source : BlockPos, volume : UInt) : List<BlockPos> {
+fun calculateZone(level : Level, source : BlockPos, volume : UInt) : List<Node> {
     val expansionQueue = PriorityQueue(Node::compare)
     val visitedSet = mutableSetOf<BlockPos>()
 
     expansionQueue.add(Node(source, 0.0, null, null, 0))
 
-    val visited = mutableListOf<BlockPos>()
+    val visited = mutableListOf<Node>()
 
     for(i in 0u..volume) {
-        val currentNode = expansionQueue.poll()
+        val current = expansionQueue.poll()
 
-        visited.add(currentNode.pos)
-        visitedSet.add(currentNode.pos)
+        current?.let { currentNode ->
+            visited.add(currentNode)
+            visitedSet.add(currentNode.pos)
 
-        val currentPos = Vector3d().from(currentNode.pos)
+            val append : (BlockPos) -> Unit = append@ { targetPos ->
+                if(!visitedSet.contains((targetPos))) {
+                    visitedSet.add(targetPos)
+                    if(!isPassable(level, targetPos)) {
+                        return@append
+                    }
+                    val target = Vector3d().fromCenter(targetPos)
 
-        val append : (BlockPos) -> Unit = append@ { targetPos ->
-            if(!visitedSet.contains((targetPos))) {
-                visitedSet.add(targetPos)
-                if(!isPassable(level, targetPos)) {
-                    return@append
-                }
-                val target = Vector3d().from(targetPos)
+                    val bend = currentNode.lastBend
+                    var newBend = bend
 
-                var newBend = currentNode.lastBend
-
-                val newNode = currentNode.lastBend?.let { bend ->
-                    val bPos = Vector3d().from(bend.pos)
+                    val bPos = Vector3d().fromCenter(bend.pos)
                     val delta = bPos - target
                     val dir = delta.normalize(Vector3d())
 
@@ -53,22 +51,22 @@ fun calculateZone(level : Level, source : BlockPos, volume : UInt) : List<BlockP
                     //TODO raycast path from last bend
                     if(!notHit) {
                         newBend = currentNode
-                        distanceToBend = 1.0 + (bPos - currentPos).length()
+                        distanceToBend = 1.0
                     }
 
-                    Node(targetPos, distanceToBend, currentNode, newBend, currentNode.order + 1)
+                    val newNode = Node(targetPos, distanceToBend + newBend.distance, currentNode, newBend, currentNode.order + 1)
+
+                    expansionQueue.add(newNode)
                 }
-
-                expansionQueue.add(newNode)
             }
-        }
 
-        append(currentNode.pos.above())
-        append(currentNode.pos.below())
-        append(currentNode.pos.north())
-        append(currentNode.pos.east())
-        append(currentNode.pos.south())
-        append(currentNode.pos.west())
+            append(currentNode.pos.above())
+            append(currentNode.pos.below())
+            append(currentNode.pos.north())
+            append(currentNode.pos.east())
+            append(currentNode.pos.south())
+            append(currentNode.pos.west())
+        }
     }
 
     return visited
@@ -78,8 +76,9 @@ private fun isPassable(level : Level, pos: BlockPos) : Boolean {
     return level.getBlockState(pos).isAir
 }
 
+class Node(val pos: BlockPos, val distance: Double, val previous : Node?, bend : Node?, val order : Int) {
 
-private class Node(val pos: BlockPos, val distance: Double, val previous : Node?, val lastBend : Node?, val order : Int) {
+    val lastBend = bend ?: this
 
     val chain : List<Node>
         get() {
@@ -91,7 +90,7 @@ private class Node(val pos: BlockPos, val distance: Double, val previous : Node?
     val bendChain : List<Node>
         get() {
             return chainToList(1) {
-                it.lastBend
+                if(it.lastBend == it) null else it.lastBend
             }
         }
 

@@ -102,7 +102,7 @@ dependencies {
 
     implementation 'thedarkcolour:kotlinforforge:3.12.0'
 
-    implementation "com.LubieKakao1212.qulib:qulib-kt:${mcVersion}-${qulibVersion}"
+    implementation fg.deobf("com.LubieKakao1212.qulib:qulib-kt:${mcVersion}-${qulibVersion}")
 }
 
 compileKotlin {
